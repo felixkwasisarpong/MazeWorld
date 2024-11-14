@@ -135,3 +135,38 @@ class MazeRL:
                     policy[(i, j)] = action
         return policy
 
+    def generate_trajectory(self,start_state, policy, max_steps=100):
+        trajectory = []
+        state = start_state
+        total_reward = 0
+
+        for _ in range(max_steps):
+            action = policy.get(state, (0, 0))  # Get action from policy, default to no movement
+            next_state, reward = self.step(state, action)
+            trajectory.append((state, action, reward))
+            total_reward += reward
+            state = next_state
+
+            if state == self.goal_state:  # Stop if the goal state is reached
+                break
+
+        return trajectory, total_reward
+
+
+
+
+
+    def task_5_generate_trajectories(self, policy, num_trajectories=10):
+        trajectories = []
+        rewards = []
+
+        for _ in range(num_trajectories):
+            start_state = (np.random.randint(0, self.size[0]), np.random.randint(0, self.size[1]))  # Random initial state
+            if start_state == self.goal_state or start_state in self.fences:
+                continue  # Skip if initial state is goal or a fence
+            trajectory, total_reward = self.generate_trajectory(start_state, policy)
+            trajectories.append(trajectory)
+            rewards.append(total_reward)
+
+        return trajectories, rewards
+
