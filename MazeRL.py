@@ -37,27 +37,27 @@ class MazeRL:
 
     def policy_evaluation(self, policy, gamma=0.9, iterations=100):
 
-        V = {state: 0 for state in policy.keys()}  # Initialize values to 0
+        V = {s: 0 for s in policy.keys()}  # Initialize values to 0
         
         for _ in range(iterations):
             new_V = V.copy()
-            for state in policy.keys():
-                if state == self.goal_state:
-                    new_V[state] = 0  # Goal state always has value 0
+            for s in policy.keys():
+                if s == self.goal_state:
+                    new_V[s] = 0  # Goal state always has value 0
                     continue
                     
-                if state in self.fences or policy[state] is None:
-                    new_V[state] = None  # Skip fence states
+                if s in self.fences or policy[s] is None:
+                    new_V[s] = None  # Skip fence states
                     continue
                     
-                action = policy[state]
-                next_state, _ = self.step(state, action)
+                action = policy[s]
+                s_prime, _ = self.step(s, action)
                 
                 # Reward is -1 for all transitions except at goal state
-                reward = 0 if next_state == self.goal_state else -1
+                reward = 0 if s_prime == self.goal_state else -1
                 
-                if next_state in V and V[next_state] is not None:
-                    new_V[state] = reward + gamma * V[next_state]
+                if s_prime in V and V[s_prime] is not None:
+                    new_V[s] = reward + gamma * V[s_prime]
                 
             V = new_V
             
@@ -83,12 +83,12 @@ class MazeRL:
                 max_value = float('-inf')
                 
                 # Try all actions and pick the best one
-                for action in range(4):
-                    next_state, reward = self.step((i, j), action)
+                for a in range(4):
+                    next_state, reward = self.step((i, j), a)
                     value = reward + gamma * V[next_state[0], next_state[1]]
                     if value > max_value:
                         max_value = value
-                        best_action = action
+                        best_action = a
                         
                 policy[(i, j)] = best_action
                 
@@ -134,20 +134,15 @@ class MazeRL:
         plt.show()
 
 
-    def run_policy_iteration(maze_rl):
-        # Get initial random policy
-        random_policy = maze_rl.get_random_policy()
-        
+    def run_policy_iteration(self,random_policy):
         # Evaluate the random policy
-        V_random = maze_rl.policy_evaluation(random_policy)
-        maze_rl.display_optimal_value_function(V_random, "Value Function for Random Policy")
+        V_random = self.policy_evaluation(random_policy)
         
         # Improve the policy
-        optimal_policy = maze_rl.policy_improvement(V_random)
+        optimal_policy = self.policy_improvement(V_random)
         
         # Evaluate the improved policy
-        V_optimal = maze_rl.policy_evaluation(optimal_policy)
-        maze_rl.display_value_function(V_optimal, "Value Function for Optimal Policy")
+        V_optimal = self.policy_evaluation(optimal_policy)
         
         return optimal_policy, V_optimal
 
@@ -169,8 +164,8 @@ class MazeRL:
         if s_prime in self.fences:
             s_prime = s  # Reset to the same state if it's a fence
 
-        reward = -1 if s_prime != self.goal_state else 0
-        return s_prime, reward
+        r = -1 if s_prime != self.goal_state else 0
+        return s_prime, r
     
 
 
@@ -218,17 +213,17 @@ class MazeRL:
         Generates a single trajectory from a given start state based on the provided policy.
         """
         trajectory = []
-        state = start_state
+        s = start_state
         total_reward = 0
 
         for _ in range(max_steps):
-            action = policy.get(state, (0, 0))  # Get action from policy, default to no movement
-            next_state, reward = self.step(state, action)
-            trajectory.append((state, action, reward))
-            total_reward += reward
-            state = next_state
+            a = policy.get(s, (0, 0))  # Get action from policy, default to no movement
+            s_prime, r = self.step(s, a)
+            trajectory.append((s, a, r))
+            total_reward += r
+            s = s_prime
 
-            if state == self.goal_state:  # Stop if the goal state is reached
+            if s == self.goal_state:  # Stop if the goal state is reached
                 break
 
         return trajectory, total_reward
@@ -263,30 +258,30 @@ class MazeRL:
         rewards_per_episode = []
 
         for _ in range(num_episodes): 
-            state = (np.random.randint(0, self.size[0]), np.random.randint(0, self.size[1]))
-            while state in self.fences or state == self.goal_state:
-                state = (np.random.randint(0, self.size[0]), np.random.randint(0, self.size[1]))
+            s = (np.random.randint(0, self.size[0]), np.random.randint(0, self.size[1]))
+            while s in self.fences or s == self.goal_state:
+                s = (np.random.randint(0, self.size[0]), np.random.randint(0, self.size[1]))
 
             total_reward = 0
             done = False
             while not done:
                 # Epsilon-greedy action selection
                 if np.random.random() < epsilon:
-                    action = np.random.choice(4)
+                    a = np.random.choice(4)
                 else:
-                    action = np.argmax(Q[state[0], state[1]])
+                    a = np.argmax(Q[s[0], s[1]])
 
-                next_state, reward = self.step(state, action)
+                s_prime, reward = self.step(s, a)
                 total_reward += reward
 
                 # Q-learning update rule
-                best_next_action = np.argmax(Q[next_state[0], next_state[1]])
-                Q[state[0], state[1], action] += alpha * (
-                    reward + gamma * Q[next_state[0], next_state[1], best_next_action] - Q[state[0], state[1], action]
+                best_next_action = np.argmax(Q[s_prime[0], s_prime[1]])
+                Q[s[0], s[1], a] += alpha * (
+                    reward + gamma * Q[s_prime[0], s_prime[1], best_next_action] - Q[s[0], s[1], a]
                 )
 
-                state = next_state
-                done = state == self.goal_state
+                s = s_prime
+                done = s == self.goal_state
 
             rewards_per_episode.append(total_reward)
 
@@ -298,29 +293,29 @@ class MazeRL:
         rewards_per_episode = []
 
         for _ in range(num_episodes):
-            state = (np.random.randint(0, self.size[0]), np.random.randint(0, self.size[1]))
-            while state in self.fences or state == self.goal_state:
-                state = (np.random.randint(0, self.size[0]), np.random.randint(0, self.size[1]))
+            s = (np.random.randint(0, self.size[0]), np.random.randint(0, self.size[1]))
+            while s in self.fences or s == self.goal_state:
+                s = (np.random.randint(0, self.size[0]), np.random.randint(0, self.size[1]))
 
             # Epsilon-greedy action selection
-            action = np.random.choice(4) if np.random.random() < epsilon else np.argmax(Q[state[0], state[1]])
+            a = np.random.choice(4) if np.random.random() < epsilon else np.argmax(Q[s[0], s[1]])
 
             total_reward = 0
             done = False
             while not done:
-                next_state, reward = self.step(state, action)
+                s_prime, reward = self.step(s, a)
                 total_reward += reward
 
                 # Epsilon-greedy action selection for the next state
-                next_action = np.random.choice(4) if np.random.random() < epsilon else np.argmax(Q[next_state[0], next_state[1]])
+                a_prime = np.random.choice(4) if np.random.random() < epsilon else np.argmax(Q[s_prime[0], s_prime[1]])
 
                 # SARSA update rule
-                Q[state[0], state[1], action] += alpha * (
-                    reward + gamma * Q[next_state[0], next_state[1], next_action] - Q[state[0], state[1], action]
+                Q[s[0], s[1], a] += alpha * (
+                    reward + gamma * Q[s_prime[0], s_prime[1], a_prime] - Q[s[0], s[1], a]
                 )
 
-                state, action = next_state, next_action
-                done = state == self.goal_state
+                s, a = s_prime, a_prime
+                done = s == self.goal_state
 
             rewards_per_episode.append(total_reward)
 
@@ -376,3 +371,45 @@ class MazeRL:
         plt.ylabel("Accumulated Reward")
         plt.legend()
         plt.show()
+
+
+    def sarsa_trajectory(self, num_episodes=500, alpha=0.1, gamma=0.9, epsilon=0.1):
+        """SARSA implementation with trajectory generation."""
+        Q = np.zeros((*self.size, 4))  # Q-table initialized to zero; 4 possible actions
+        rewards_per_episode = []
+        trajectories = []
+
+        for _ in range(num_episodes):
+            s = (np.random.randint(0, self.size[0]), np.random.randint(0, self.size[1]))
+            while s in self.fences or s == self.goal_state:
+                s = (np.random.randint(0, self.size[0]), np.random.randint(0, self.size[1]))
+
+            # Epsilon-greedy action selection
+            a = np.random.choice(4) if np.random.random() < epsilon else np.argmax(Q[s[0], s[1]])
+
+            total_reward = 0
+            trajectory = []  # Store (state, action, reward) for this episode
+            done = False
+
+            while not done:
+                s_prime, reward = self.step(s, a)
+                total_reward += reward
+
+                # Record (state, action, reward) in the trajectory
+                trajectory.append((s, a, reward))
+
+                # Epsilon-greedy action selection for the next state
+                a_prime = np.random.choice(4) if np.random.random() < epsilon else np.argmax(Q[s_prime[0], s_prime[1]])
+
+                # SARSA update rule
+                Q[s[0], s[1], a] += alpha * (
+                    reward + gamma * Q[s_prime[0], s_prime[1], a_prime] - Q[s[0], s[1], a]
+                )
+
+                s, a = s_prime, a_prime
+                done = s == self.goal_state
+
+            rewards_per_episode.append(total_reward)
+            trajectories.append(trajectory)  # Store trajectory for this episode
+
+        return rewards_per_episode, Q, trajectories
